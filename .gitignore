@@ -32,3 +32,10 @@ sysinfo.txt
 # Builds
 *.apk
 *.unitypackage
+
+UnityTodolistClient/UnityTodolistClient/Library/*
+UnityTodolistClient/UnityTodolistClient/Temp/*
+UnityTodolistClient/UnityTodolistClient/_UpgradeReport_Files/*
+UnityTodolistClient/UnityTodolistClient/obj/Debug/*
+
+
