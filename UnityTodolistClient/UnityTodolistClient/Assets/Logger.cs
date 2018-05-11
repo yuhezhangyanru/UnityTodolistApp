@@ -12,6 +12,6 @@ public class Logger
 
     public static void LogError(string log)
     {
-        UnityEngine.Debug.Log("time=" + DateTime.Now.ToShortTimeString() + ",t=" + UnityEngine.Time.unscaledTime + ":" + log);
+        UnityEngine.Debug.LogError("time=" + DateTime.Now.ToShortTimeString() + ",t=" + UnityEngine.Time.unscaledTime + ":" + log);
     }
 }
