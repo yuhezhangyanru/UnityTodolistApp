@@ -36,4 +36,14 @@ public class CreateObjMenu
         //UnityEditor.AssetDatabase.DeleteAsset(
         UnityEditor.AssetDatabase.CreateAsset(resoureObj, path);
     }
+
+    /// <summary>
+    /// 从数据库生成表结构
+    /// </summary>
+    [MenuItem("Menus/CreateDataBaseTables(从数据库生成表结构)")]
+    public static void CreateDataBaseTables()
+    {
+        SqlAccess.instance.UpdateDBClass();
+    }
+
 }
