@@ -11,6 +11,12 @@ using System.Text;
 public class table_data_base
 {
     public List<string> memNameList;
+	//固定的作为ID啊
+	public virtual string id 
+	{
+		set{ } 
+		get{ return "";}
+	}
     /// <summary>
     /// 需要重写构造！
     /// </summary>
@@ -19,14 +25,19 @@ public class table_data_base
         MemberInfo[] infos = this.GetType().GetMembers();
         memNameList = new List<string>();
         for (int index = 0; index < infos.Length; index++)
-        {
-            if (infos[index].MemberType != MemberTypes.Field)
+		{
+//			Logger.LogError("classType=" + this.GetType().Name + ",成员类型=" + infos[index].Name + ",notField?"
+//				+ (infos[index].MemberType != MemberTypes.Field)+",notproperty?"
+//				+(infos[index].MemberType!= MemberTypes.Property));
+            if ( infos[index].DeclaringType != this.GetType()) //只有子类定义的才看
                 continue;
+            if (infos[index].MemberType != MemberTypes.Property) //_id 属于属性范畴，
+                continue;
+
             memNameList.Add(infos[index].Name);
-            Logger.LogError("成员类型=" + infos[index].Name);
         }
     }
-
+     
     public override string ToString()
     {
         string res = "";

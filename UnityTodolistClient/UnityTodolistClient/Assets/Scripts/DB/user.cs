@@ -9,7 +9,7 @@ public class user : table_data_base
         }
 
 		/*用户ID*/
-        public string id
+        public override string id
 		{
 			set{ _id=value;}
 			get{return _id;}

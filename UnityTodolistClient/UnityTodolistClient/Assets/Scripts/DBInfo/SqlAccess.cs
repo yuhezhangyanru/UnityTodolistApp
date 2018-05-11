@@ -1,13 +1,16 @@
 ﻿using System;
 using System.Collections.Generic;
 using System.Data;
+using System.IO;
 using System.Linq;
 using System.Text;
 using MySql.Data.MySqlClient;
 using UnityEngine;
-using System.IO;
 
-
+/// <summary>
+/// function:数据库基础操作工具类
+/// date:2018-5-11 23:44:34
+/// </summary>
 public class SqlAccess
 {
     private static SqlAccess _instance = null;
@@ -24,11 +27,6 @@ public class SqlAccess
     }
 
     public static MySqlConnection mySqlConnection;//连接类对象  
-    private static string database = "effectivetodolist_db";
-    private static string host = "127.0.0.1";
-    private static string id = "root";
-    private static string pwd = "123456";
-    private static string port = "3306";
 
     /// <summary>  
     /// 打开数据库  
@@ -49,84 +47,7 @@ public class SqlAccess
             throw new Exception("服务器连接失败.....e=" + e.Message);
         }
     }
-
-    //yanruTODO测试函数
-    public void Test()
-    {
-        Logger.Log("-----------------Mysql 连接--------------------------------");
-
-        OpenSql();
-        Logger.Log("-----------------查询 操作--------------------------------");
-        string querySQL = "select * from user";
-        var mySQLAdapter = new MySqlDataAdapter(querySQL, mySqlConnection);
-        DataTable mySQLDataTable = new DataTable();
-        mySQLAdapter.Fill(mySQLDataTable);
-
-        foreach (DataRow dr in mySQLDataTable.Rows)
-        {
-            for (int j = 0; j < dr.ItemArray.Length; j++)
-            {
-                string str = dr[j].ToString();
-            }
-            Logger.Log("数据" + dr["id"]);
-        }
-        Logger.Log("条数：" + mySQLDataTable.Rows.Count);
-
-
-        //-查询，利用 MySQLDataReader,依次读取每一条数据 
-        var mySQLCommand = new MySqlCommand(querySQL, mySqlConnection);
-        var mySQLReader = (MySqlDataReader)mySQLCommand.ExecuteReader();
-        int i = 0;
-        while (mySQLReader.Read())
-        {
-            i++;
-            for (int j = 0; j < mySQLReader.FieldCount; j++)
-            {
-                string str = mySQLReader[j].ToString();
-            }
-            Logger.Log("数据:" + mySQLReader["id"].ToString());
-        }
-        mySQLReader.Close();
-
-        Logger.Log("-----------------操作结束--------------------------------");
-
-        #region ---------------------------插入操作插入一条任务信息------------------------------------
-        Logger.Log("---------------------直接插入 操作--------------------------");
-
-
-        string x = "10001";
-        string x1 = "1";//任务ID
-        string x2 = "1";//userID
-        string x3 = "晚上十点睡觉";//任务描述
-        string startTime = "2012-12-9 10:00:00"; //任务开始时间
-        string endTime = "2012-12-9 12:00:00"; //任务结束时间
-        string finishTime = "2012-12-9 12:00:00"; //任务完成时间 //完成时间为空表示该任务未完成
-
-        //TODO 暂时屏蔽，不然总是报错
-        //string insertSQL = "INSERT INTO table_task_list VALUES('"+x+"','"+x1+"','"+x2+"','"+startTime+"','"+endTime+"','"+finishTime+"');";
-        //var insertCommand = new MySqlCommand(insertSQL, mySqlConnection);
-        //insertCommand.ExecuteNonQuery();
-
-        Logger.Log("-----------------操作结束--------------------------------");
-
-
-        #endregion
-        Logger.Log("-----------------更新 操作--------------------------------");
-
-
-        //屏蔽更新那操作
-        string updateSQL = "UPDATE table_task_list SET description='哈哈哈晚上十点睡觉' WHERE id = 1";
-        var updateCmd = new MySqlCommand(updateSQL, mySqlConnection);
-        updateCmd.ExecuteNonQuery();
-
-
-        Logger.Log("-----------------操作结束--------------------------------");
-
-
-        mySqlConnection.Close();
-    }
-
-
+	 
     /// <summary>  
     /// 创建表  
     /// </summary>  
@@ -209,53 +130,25 @@ public class SqlAccess
         UnityEngine.Debug.Log("query=" + query);
         return QuerySet(query);
     }
-
-    /// <summary>  
-    /// 删除  
-    /// </summary>  
-    /// <param name="tableName">表名</param>  
-    /// <param name="cols">条件：删除列</param>  
-    /// <param name="colsvalues">删除该列属性值所在得行</param>  
-    /// <returns></returns>  
-    public DataSet Delete(string tableName, string[] cols, string[] colsvalues)
+ 
+    /// <summary>
+    /// 删除某张表
+    /// </summary>
+    /// <typeparam name="T"></typeparam>
+    /// <param name="table"></param>
+    /// <param name="whereSql"></param>
+    public void DeleteEntity<T>(string whereSql) where T : table_data_base
     {
-        string query = "DELETE FROM " + tableName + " WHERE " + cols[0] + " = " + colsvalues[0];
-        for (int i = 1; i < colsvalues.Length; ++i)
-        {
-
-            query += " or " + cols[i] + " = " + colsvalues[i];
-        }
-        //  Debug.Log(query);  
-        return QuerySet(query);
+        QuerySet("delete from "+typeof(T).Name+" where " + whereSql);
     }
-
-    /// <summary>  
-    /// 更新  
-    /// </summary>  
-    /// <param name="tableName">表名</param>  
-    /// <param name="cols">更新列</param>  
-    /// <param name="colsvalues">更新的值</param>  
-    /// <param name="selectkey">条件：列</param>  
-    /// <param name="selectvalue">条件：值</param>  
-    /// <returns></returns>  
-    public DataSet UpdateInto(string tableName, string[] cols, string[] colsvalues, string selectkey, string selectvalue)
-    {
-        string query = "UPDATE " + tableName + " SET " + cols[0] + " = " + colsvalues[0];
-        for (int i = 1; i < colsvalues.Length; ++i)
-        {
-            query += ", " + cols[i] + " =" + colsvalues[i];
-        }
-        query += " WHERE " + selectkey + " = " + selectvalue + " ";
-        return QuerySet(query);
-    }
-
+ 
     /// <summary>  
     /// 插入一条数据，包括所有，不适用自动累加ID。  
     /// </summary>  
     /// <param name="tableName">表名</param>  
     /// <param name="values">插入值</param>  
     /// <returns></returns>  
-    public DataSet InsertInto(string tableName, string[] values)
+    private DataSet InsertInto(string tableName, string[] values)
     {
         string query = "INSERT INTO " + tableName + " VALUES (" + "'" + values[0] + "'";
         for (int i = 1; i < values.Length; ++i)
@@ -263,54 +156,105 @@ public class SqlAccess
             query += ", " + "'" + values[i] + "'";
         }
         query += ")";
-        // Debug.Log(query);  
         return QuerySet(query);
     }
-
-
-    /// <summary>  
-    /// 插入部分  
-    /// </summary>  
-    /// <param name="tableName">表名</param>  
-    /// <param name="col">属性列</param>  
-    /// <param name="values">属性值</param>  
-    /// <returns></returns>  
-    public DataSet InsertInto(string tableName, string[] col, string[] values)
+  
+    /// <summary>
+    /// 将sql查询结果映射到实体对象列表,查询全部字段
+    /// </summary>
+    /// <typeparam name="T"></typeparam>
+    /// <param name="sqlWhere">只填充where中的表达式条件本身！</param>
+    /// <returns></returns>
+    public List<T> SelectList<T>(string sqlWhere) where T : table_data_base
     {
-        if (col.Length != values.Length)
+        DataSet dataSet = QuerySet("select * from " + typeof(T).Name + " where " + sqlWhere);
+        List<T> dataList = new List<T>();
+        for (int index = 0; index < dataSet.Tables[0].Rows.Count; index++)
         {
-            throw new Exception("columns.Length != colType.Length");
+            T child = Activator.CreateInstance<T>();// new table_data_base() as T;
+            for (int childIndex = 0; childIndex < child.memNameList.Count; childIndex++)
+            {
+                string memberName = child.memNameList[childIndex];
+                child.setMemberValue(memberName, dataSet.Tables[0].Rows[index][memberName]);
+            }
+            dataList.Add(child);
         }
-        string query = "INSERT INTO " + tableName + " (" + col[0];
-        for (int i = 1; i < col.Length; ++i)
-        {
-            query += ", " + col[i];
-        }
-
-        query += ") VALUES (" + "'" + values[0] + "'";
-        for (int i = 1; i < values.Length; ++i)
-        {
-            query += ", " + "'" + values[i] + "'";
-        }
-        query += ")";
-        //   Debug.Log(query);  
-        return instance.QuerySet(query);
-
+        return dataList;
     }
+
+    /// <summary>
+    /// 插入一条数据库记录！//OK
+    /// </summary>
+    /// <typeparam name="T"></typeparam>
+    /// <param name="table"></param>
+    public void InsertEntity<T>(T table) where T : table_data_base
+    {
+        OpenSql();
+
+        string[] values = new string[table.memNameList.Count];
+        for (int index = 0; index < table.memNameList.Count; index++)
+        {
+            values[index] = table.getMemberValue(table.memNameList[index]) + "";
+        }
+        InsertInto(typeof(T).Name, values.ToArray());
+
+        Close();
+    }
+
+	/// <summary>
+	/// 更新表结构,返回true表示更新成功！
+	/// </summary>
+	/// <param name="table">Table.</param>
+	/// <typeparam name="T">The 1st type parameter.</typeparam>
+	public bool UpdateTable<T>(table_data_base table)  where T:table_data_base
+	{ 
+		OpenSql ();
+		var selectOld = SelectList<T> ("id='" + table.id + "'");
+		if (selectOld == null || selectOld.Count == 0)
+			return false;
+		string setValStr = "";
+		var oldItem = selectOld [0];
+		for (int index = 0; index < table.memNameList.Count; index++) {
+			string memberName = table.memNameList [index];
+			if (oldItem.getMemberValue (memberName) != table.getMemberValue (memberName)) {
+				string valStr = "'" +table.getMemberValue(memberName)+ "'";
+				if (table.getMemberType (memberName).Name == "int") {
+					valStr = table.getMemberValue (memberName) + "";
+				} 
+				setValStr += memberName + "="+ valStr+",";
+			}
+		}
+		setValStr = setValStr.TrimEnd (','); 
+		string newSql = "update "+table.GetType().Name+" set "+setValStr +" where id='"+table.id+"'";
+		QuerySet (newSql); 
+		Close ();
+		return true;
+	}
+
+    /// <summary>
+    /// 生成唯一ID
+    /// </summary>
+    /// <returns></returns>
+    public string getUUID()
+    {
+        var ds = QuerySet("select uuid()");
+        Logger.Log("UUID=" + ds.Tables[0].Rows[0]["uuid()"]+"");
+        return ds.Tables[0].Rows[0]["uuid()"] + "";
+    }
+
     /// <summary>  
     ///   
     /// 执行Sql语句   //test OK
     /// </summary>  
     /// <param name="sqlString">sql语句</param>  
     /// <returns></returns>  
-    public DataSet QuerySet(string sqlString)
+    private DataSet QuerySet(string sqlString)
     {
         OpenSql();
+        Logger.Log("conState=" + mySqlConnection.State + ",sql=" + sqlString);
         if (mySqlConnection.State == ConnectionState.Open)
         {
             DataSet ds = new DataSet();
-            //try
-            //{
             var mySqlDataAdapter = new MySqlDataAdapter(sqlString, mySqlConnection);
             mySqlDataAdapter.Fill(ds);
  
@@ -331,9 +275,23 @@ public class SqlAccess
     }
 
 
+	/// <summary>
+	/// 在sql语句中根据字段的类型决定字段在qsl中是否要单引号
+	/// </summary>
+	/// <returns>The filed format.</returns>
+	/// <param name="fieldName">Field name.</param>
+	/// <param name="fieldType">Field type.</param>
+	private string getFiledFormat(string fieldName,string fieldType)
+	{
+		if (fieldType == "int") {
+			return fieldName + "";	
+	}
+		return "'" + fieldName + "'";
+	}
+
     /// <summary>
     /// ===============================================================
-    /// 以下是生成表结构工具类的处理
+    /// 菜单：以下是生成表结构工具类的处理
     /// </summary> 
     /// 
 	public void UpdateDBClass()
@@ -365,6 +323,7 @@ public class SqlAccess
                 string useColume = childInfo["Field"]+"";
                 string useType = childInfo["Type"] + "";
                 string comment = childInfo["Comment"] + "";
+				bool isKey = childInfo ["Key"] + "" == "PRI";
                 string displayType = "";
                 if (useType.Contains("char("))
                 {
@@ -378,7 +337,16 @@ public class SqlAccess
                 names1 += "\t\tprivate " + displayType + " _" + useColume + ";\n";
                 names2 += "\n\t\t";
                 names2 += "/*"+comment+"*/\n";
-                names2 += "        public " + displayType + " " + useColume + "\n\t\t{\n\t\t\tset{ _" + useColume 
+				Logger.Log ("字段=" + useColume + ",类型=" + useType + ",key=" + childInfo ["Key"] + "，是主键?" + isKey);
+				string itemHead = "";
+				if (isKey) {
+					if (useColume != "id") {
+						Logger.LogError ("表=" + tableName + ",的主键字段要求必须命名为'id'，这样才能方便统一管理！");
+					}
+					itemHead = "override ";
+				} else {
+				}
+				names2 += "        public " +itemHead+ displayType + " " + useColume + "\n\t\t{\n\t\t\tset{ _" + useColume 
                     + "=value;}\n\t\t\tget{return _" + useColume + ";}\n\t\t}";
             }
 

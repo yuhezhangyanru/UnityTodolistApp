@@ -9,7 +9,7 @@ public class table_task_list : table_data_base
         }
 
 		/*任务ID唯一，*/
-        public string id
+        public override string id
 		{
 			set{ _id=value;}
 			get{return _id;}
