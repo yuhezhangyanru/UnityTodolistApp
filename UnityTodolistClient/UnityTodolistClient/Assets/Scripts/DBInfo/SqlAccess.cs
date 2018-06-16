@@ -28,24 +28,27 @@ public class SqlAccess
 
     public static MySqlConnection mySqlConnection;//连接类对象  
 
+    private UserConfig _config { get { return GlobalResource.instance.userConfig; } }
     /// <summary>  
     /// 打开数据库  
     /// </summary>  
-    public static void OpenSql()
+    public static string OpenSql(string DBServerIP, string DBName, string userName, string password, string port)
     {
         try
         {
-            var config = GlobalResource.instance.userConfig;
             string sqlString = string.Format("Database={0};Data Source={1};User Id={2};Password={3};",
-                config.DataBaseName, config.DataBaseIP, config.DbUserID, config.DbPassword, config.DbPort);
+                       DBName, DBServerIP, userName, password, port);
             Logger.Log("open sql,sqlstr=" + sqlString);
             mySqlConnection = new MySqlConnection(sqlString);
             mySqlConnection.Open();
+            return "";
         }
         catch (Exception e)
         {
-            throw new Exception("服务器连接失败.....e=" + e.Message);
+            Debug.LogError("服务器连接失败.....e=" + e.Message);
+            return "服务器连接失败.....e=" + e.Message;
         }
+        return "";
     }
 	 
     /// <summary>  
@@ -67,7 +70,7 @@ public class SqlAccess
             query += "," + colName[i] + " " + colType[i];
         }
         query += ")";
-        return instance.QuerySet(query);
+        return instance.QuerySet(query,_config);
     }
 
     /// <summary>  
@@ -91,7 +94,7 @@ public class SqlAccess
         }
         query += ", PRIMARY KEY (" + col[0] + ")" + ")";
         //    Debug.Log(query);  
-        return QuerySet(query);
+        return QuerySet(query,_config);
     }
 
     /// <summary>  
@@ -128,7 +131,7 @@ public class SqlAccess
             query += " AND " + whereColName[i] + operation[i] + "' " + value[i] + "';";
         }
         UnityEngine.Debug.Log("query=" + query);
-        return QuerySet(query);
+        return QuerySet(query,_config);
     }
  
     /// <summary>
@@ -139,7 +142,7 @@ public class SqlAccess
     /// <param name="whereSql"></param>
     public void DeleteEntity<T>(string whereSql) where T : table_data_base
     {
-        QuerySet("delete from "+typeof(T).Name+" where " + whereSql);
+        QuerySet("delete from "+typeof(T).Name+" where " + whereSql,_config);
     }
  
     /// <summary>  
@@ -156,7 +159,7 @@ public class SqlAccess
             query += ", " + "'" + values[i] + "'";
         }
         query += ")";
-        return QuerySet(query);
+        return QuerySet(query, _config);
     }
   
     /// <summary>
@@ -167,7 +170,7 @@ public class SqlAccess
     /// <returns></returns>
     public List<T> SelectList<T>(string sqlWhere) where T : table_data_base
     {
-        DataSet dataSet = QuerySet("select * from " + typeof(T).Name + " where " + sqlWhere);
+        DataSet dataSet = QuerySet("select * from " + typeof(T).Name + " where " + sqlWhere, _config);
         List<T> dataList = new List<T>();
         for (int index = 0; index < dataSet.Tables[0].Rows.Count; index++)
         {
@@ -189,7 +192,7 @@ public class SqlAccess
     /// <param name="table"></param>
     public void InsertEntity<T>(T table) where T : table_data_base
     {
-        OpenSql();
+        OpenSql(_config.DataBaseIP,_config.DataBaseName,_config.DbUserID,_config.DbPassword,_config.DbPort);
 
         string[] values = new string[table.memNameList.Count];
         for (int index = 0; index < table.memNameList.Count; index++)
@@ -208,8 +211,8 @@ public class SqlAccess
 	/// <typeparam name="T">The 1st type parameter.</typeparam>
 	public bool UpdateTable<T>(table_data_base table)  where T:table_data_base
 	{ 
-		OpenSql ();
-		var selectOld = SelectList<T> ("id='" + table.id + "'");
+		OpenSql  (_config.DataBaseIP, _config.DataBaseName, _config.DbUserID, _config.DbPassword, _config.DbPort);
+        var selectOld = SelectList<T> ("id='" + table.id + "'");
 		if (selectOld == null || selectOld.Count == 0)
 			return false;
 		string setValStr = "";
@@ -226,7 +229,7 @@ public class SqlAccess
 		}
 		setValStr = setValStr.TrimEnd (','); 
 		string newSql = "update "+table.GetType().Name+" set "+setValStr +" where id='"+table.id+"'";
-		QuerySet (newSql); 
+		QuerySet (newSql,_config); 
 		Close ();
 		return true;
 	}
@@ -237,7 +240,7 @@ public class SqlAccess
     /// <returns></returns>
     public string getUUID()
     {
-        var ds = QuerySet("select uuid()");
+        var ds = QuerySet("select uuid()",_config);
         Logger.Log("UUID=" + ds.Tables[0].Rows[0]["uuid()"]+"");
         return ds.Tables[0].Rows[0]["uuid()"] + "";
     }
@@ -248,9 +251,11 @@ public class SqlAccess
     /// </summary>  
     /// <param name="sqlString">sql语句</param>  
     /// <returns></returns>  
-    private DataSet QuerySet(string sqlString)
+    private DataSet QuerySet(string sqlString,UserConfig config)
     {
-        OpenSql();
+        if (config == null)
+            config = _config;
+        OpenSql(config.DataBaseIP, config.DataBaseName, config.DbUserID, config.DbPassword, config.DbPort);
         Logger.Log("conState=" + mySqlConnection.State + ",sql=" + sqlString);
         if (mySqlConnection.State == ConnectionState.Open)
         {
@@ -294,60 +299,111 @@ public class SqlAccess
     /// 菜单：以下是生成表结构工具类的处理
     /// </summary> 
     /// 
-	public void UpdateDBClass()
+	public void UpdateDBClass(out string errorTip,UserConfig config,string output ,string fileTail)
     {
-        OpenSql();
-        var dataSet = QuerySet("show tables");
+        if (config == null)
+            config = _config;
+        errorTip = OpenSql(config.DataBaseIP, config.DataBaseName, config.DbUserID, config.DbPassword, config.DbPort);
+        Logger.Log("此时的错误码=" + errorTip);
+        if (errorTip != "")
+            return;
+
+        var dataSet = QuerySet("show tables", config);
         var dataSetRes1 = dataSet.Tables[0].Rows;
+        bool isTypeJava = fileTail == ".java";
+        bool isTypeCS = fileTail == ".cs";
         for (int index = 0; index < dataSetRes1.Count; index++)
         {
             string tableName = dataSetRes1[index][0].ToString();
             //Logger.LogError("index=" + index + ",tableName=" + tableName);
-			string fileContent = "using System.Collections.Generic;\nusing System;\n";
-			fileContent += "[Serializable]\n";
-            fileContent += "public class " + tableName + " : table_data_base";
-			fileContent += "\n{";
-            fileContent += "\n        public " + tableName + "()\n            : base()\n        {\n        }\n"; //添加构造！！
+			string fileContent = "";
+            if (isTypeJava)
+            {
+                fileContent += "public class " + tableName + "\n{\n";
+            }
+            else
+            {
+                fileContent += "using System.Collections.Generic;\nusing System;\n";
+                fileContent += "[Serializable]\n";
+                fileContent += "public class " + tableName + " : table_data_base";
+                fileContent += "\n{";
+                fileContent += "\n        public " + tableName + "()\n            : base()\n        {\n        }\n"; //添加构造！！
+            }
 
-			string fileHead= Application.dataPath+@"\Scripts\DB\";
-			string fileName =fileHead+ tableName+".cs";
+            string fileHead = output != "" ? output : (Application.dataPath + @"\Scripts\DB\");
+            string fileName = fileHead + tableName;
+            if (fileTail != "")
+            {
+                fileName += fileTail;
+            }
+            else
+            {
+                fileName += ".cs";
+            }
 
             string names1 = "\n\n";
             string names2 = "";
-			 
+
             //2018-5-11 修改获取字段信息
-            var tableInfo = QuerySet("SHOW FULL FIELDS FROM " + tableName + "");
+            var tableInfo = QuerySet("SHOW FULL FIELDS FROM " + tableName + "", config);
             for (int infoIndex = 0; infoIndex < tableInfo.Tables[0].Rows.Count; infoIndex++)
             {
                 var childInfo = tableInfo.Tables[0].Rows[infoIndex];
-                string useColume = childInfo["Field"]+"";
+                string useColume = childInfo["Field"] + "";
                 string useType = childInfo["Type"] + "";
                 string comment = childInfo["Comment"] + "";
-				bool isKey = childInfo ["Key"] + "" == "PRI";
+                bool isKey = childInfo["Key"] + "" == "PRI";
                 string displayType = "";
-                if (useType.Contains("char("))
+                if (isTypeJava)
                 {
-                    displayType = "string";
+                    if (useType.Contains("char("))
+                    {
+                        displayType = "String";
+                    }
+                    else if (useType.Contains("int("))
+                    {
+                        displayType = "int";
+                    }
+                    else
+                    {
+                        Logger.LogError("表=" + tableName + ",字段=" + useColume + ",类型=" + useType + "未处理！");
+                    }
+                    names2 += "/*" + comment + "*/\n";
+                    names2 += "        public " + displayType + " " + useColume + ";\n\t\t";
                 }
                 else
                 {
-                    Logger.LogError("表=" + tableName + ",字段=" + useColume + ",类型=" + useType + "未处理！");
+                    if (useType.Contains("char("))
+                    {
+                        displayType = "string";
+                    }
+                    else if (useType.Contains("int("))
+                    {
+                        displayType = "int";
+                    }
+                    else
+                    {
+                        Logger.LogError("表=" + tableName + ",字段=" + useColume + ",类型=" + useType + "未处理！");
+                    }
+                    names1 += "\t\tprivate " + displayType + " _" + useColume + ";\n";
+                    names2 += "\n\t\t";
+                    names2 += "/*" + comment + "*/\n";
+                    //	Logger.Log ("字段=" + useColume + ",类型=" + useType + ",key=" + childInfo ["Key"] + "，是主键?" + isKey);
+                    string itemHead = "";
+                    if (isKey)
+                    {
+                        if (useColume != "id")
+                        {
+                            Logger.LogError("表=" + tableName + ",的主键字段要求必须命名为'id'，这样才能方便统一管理！");
+                        }
+                        itemHead = "override ";
+                    }
+                    else
+                    {
+                    }
+                    names2 += "        public " + itemHead + displayType + " " + useColume + "\n\t\t{\n\t\t\tset{ _" + useColume
+                        + "=value;}\n\t\t\tget{return _" + useColume + ";}\n\t\t}";
                 }
-
-                names1 += "\t\tprivate " + displayType + " _" + useColume + ";\n";
-                names2 += "\n\t\t";
-                names2 += "/*"+comment+"*/\n";
-				Logger.Log ("字段=" + useColume + ",类型=" + useType + ",key=" + childInfo ["Key"] + "，是主键?" + isKey);
-				string itemHead = "";
-				if (isKey) {
-					if (useColume != "id") {
-						Logger.LogError ("表=" + tableName + ",的主键字段要求必须命名为'id'，这样才能方便统一管理！");
-					}
-					itemHead = "override ";
-				} else {
-				}
-				names2 += "        public " +itemHead+ displayType + " " + useColume + "\n\t\t{\n\t\t\tset{ _" + useColume 
-                    + "=value;}\n\t\t\tget{return _" + useColume + ";}\n\t\t}";
             }
 
 			fileContent += names2;
@@ -367,8 +423,8 @@ public class SqlAccess
 	{
 		List<string> usefulColumNameList= new List<string>();
 
-		//根据第一行数据决定有效的字段名
-		var dataSetUseful = QuerySet ("SELECT * FROM "+tableName+" LIMIT 1");
+        //根据第一行数据决定有效的字段名
+        var dataSetUseful = QuerySet("SELECT * FROM " + tableName + " LIMIT 1", _config);
 		var dataSetUsefulRes = dataSetUseful.Tables[0].Rows[0].ItemArray;
 
 		for(int subIndex=0;subIndex<dataSetUsefulRes.Length;subIndex ++)

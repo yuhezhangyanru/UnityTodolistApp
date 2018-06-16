@@ -43,7 +43,8 @@ public class CreateObjMenu
     [MenuItem("Menus/CreateDataBaseTables(从数据库生成表结构)")]
     public static void CreateDataBaseTables()
     {
-        SqlAccess.instance.UpdateDBClass();
+        string errorCode = "";
+        SqlAccess.instance.UpdateDBClass(out errorCode, GlobalResource.instance.userConfig, (Application.dataPath + @"\Scripts\DB\"), ".cs");
     }
 
 }
